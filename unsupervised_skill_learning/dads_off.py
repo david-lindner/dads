@@ -254,7 +254,7 @@ def get_environment(env_name='point_mass'):
         expose_foot_sensors=True)
     observation_omit_size = 2
   elif env_name == 'HalfCheetah-v1':
-    env = half_cheetah.HalfCheetahEnv(expose_all_qpos=True, task='motion')
+    env = half_cheetah.HalfCheetahEnv(expose_all_qpos=True, task='default')
     observation_omit_size = 1
   elif env_name == 'Humanoid-v1':
     env = humanoid.HumanoidEnv(expose_all_qpos=True)
@@ -510,9 +510,9 @@ def process_observation(observation):
     # x, y, z of the center of the block
     elif FLAGS.environment in ['HandBlock']:
       red_obs = [
-          _shape_based_observation_processing(observation, 
+          _shape_based_observation_processing(observation,
                                               observation.shape[-1] - 7),
-          _shape_based_observation_processing(observation, 
+          _shape_based_observation_processing(observation,
                                               observation.shape[-1] - 6),
           _shape_based_observation_processing(observation,
                                               observation.shape[-1] - 5)
@@ -638,6 +638,8 @@ def run_on_env(env,
       cur_observation = time_step.observation
       next_observation = next_time_step.observation
 
+    unprocessed_observation = cur_observation
+
     if dynamics is not None:
       if FLAGS.reduced_observation:
         cur_observation, next_observation = process_observation(
@@ -661,7 +663,7 @@ def run_on_env(env,
     if return_data:
       data.append([
           cur_observation, action_step.action, logp, next_time_step.reward,
-          np.array(cur_predicted_trajectory)
+          np.array(cur_predicted_trajectory), unprocessed_observation
       ])
     else:
       extrinsic_reward.append([next_time_step.reward])
@@ -702,6 +704,8 @@ def eval_loop(eval_dir,
     plt.ylim(-15, 15)
     # all_trajectories = []
     # all_predicted_trajectories = []
+
+  observations, actions = [], []
 
   for idx in range(num_evals):
     if FLAGS.num_skills > 0:
@@ -752,6 +756,9 @@ def eval_loop(eval_dir,
           return_data=True,
           close_environment=True if eval_idx == per_skill_evaluations -
           1 else False)
+
+      observations.append([x[5] for x in eval_trajectory])
+      actions.append([x[1] for x in eval_trajectory])
 
       trajectory_coordinates = np.array([
           eval_trajectory[step_idx][0][:2]
@@ -823,6 +830,15 @@ def eval_loop(eval_dir,
 
     # clear before next plot
     plt.clf()
+
+  play_data = {
+    "observations": observations,
+    "actions": actions,
+    "env_id": FLAGS.environment,
+  }
+  play_data_file = os.path.join(eval_dir, vid_name + ".pkl")
+  with open(play_data_file, "wb") as f:
+    pkl.dump(play_data, f)
 
 
 # discrete primitives only, useful with skill-dynamics
@@ -1087,7 +1103,7 @@ def main(_):
   if not tf.io.gfile.exists(root_dir):
     tf.io.gfile.makedirs(root_dir)
   log_dir = os.path.join(root_dir, FLAGS.environment)
-  
+
   if not tf.io.gfile.exists(log_dir):
     tf.io.gfile.makedirs(log_dir)
   save_dir = os.path.join(log_dir, 'models')
@@ -1571,7 +1587,7 @@ def main(_):
         save_label = 'goal_'
         if 'discrete' in FLAGS.skill_type:
           planning_fn = eval_planning
-          
+
         else:
           planning_fn = eval_mppi
 

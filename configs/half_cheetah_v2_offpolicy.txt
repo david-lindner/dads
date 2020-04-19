@@ -55,15 +55,15 @@
 --train_skill_dynamics_on_policy=0
 
 ### SHARED HYPERPARAMETERS ---------------------
---environment=HalfCheetah-v2
+--environment=HalfCheetah-v1
 --max_env_steps=1000
 --reduced_observation=2
 
 # define the type of skills being learnt
---num_skills=20
+--num_skills=2
 --skill_type=cont_uniform
 --random_skills=100
---num_evals=3
+--deterministic_eval=1
 
 # (optional) policy, critic and skill dynamics
 --hidden_layer_size=512
