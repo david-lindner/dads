@@ -86,4 +86,10 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     return self._get_obs()
 
   def viewer_setup(self):
+    camera_id = self.model.camera_name2id('track')
+    self.viewer.cam.type = 2
+    self.viewer.cam.fixedcamid = camera_id
     self.viewer.cam.distance = self.model.stat.extent * 0.5
+
+    # self.viewer.cam.distance = self.model.stat.extent * 0.5
+    # import pdb; pdb.set_trace()
