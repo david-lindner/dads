@@ -55,9 +55,10 @@
 --train_skill_dynamics_on_policy=0
 
 ### SHARED HYPERPARAMETERS ---------------------
---environment=Hopper-v2
+--environment=HalfCheetah-v1
 --max_env_steps=1000
 --reduced_observation=2
+--expose_all_qpos=0
 
 # define the type of skills being learnt
 --num_skills=5

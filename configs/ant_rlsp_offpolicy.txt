@@ -58,6 +58,7 @@
 --environment=Ant-v1
 --max_env_steps=1000
 --reduced_observation=2
+--expose_all_qpos=0
 
 # define the type of skills being learnt
 --num_skills=5

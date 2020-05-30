@@ -83,6 +83,9 @@ flags.DEFINE_integer(
     'Minimum number of steps to execute before resampling skill')
 flags.DEFINE_float('resample_prob', 0.,
                    'Creates stochasticity timesteps before resampling skill')
+flags.DEFINE_integer(
+    'expose_all_qpos', 1,
+    'expose_all_qpos')
 
 # need to set save_model and save_freq
 flags.DEFINE_string(
@@ -237,7 +240,7 @@ def get_environment(env_name='point_mass'):
   global observation_omit_size
   if env_name == 'Ant-v1':
     env = ant.AntEnv(
-        expose_all_qpos=True,
+        expose_all_qpos=bool(FLAGS.expose_all_qpos),
         task='motion')
     observation_omit_size = 2
   elif env_name == 'Ant-v1_goal':
@@ -246,19 +249,19 @@ def get_environment(env_name='point_mass'):
         ant.AntEnv(
             task='goal',
             goal=goal_coord,
-            expose_all_qpos=True),
+            expose_all_qpos=bool(FLAGS.expose_all_qpos)),
         max_episode_steps=FLAGS.max_env_steps)
   elif env_name == 'Ant-v1_foot_sensor':
     env = ant.AntEnv(
-        expose_all_qpos=True,
+        expose_all_qpos=bool(FLAGS.expose_all_qpos),
         model_path='ant_footsensor.xml',
         expose_foot_sensors=True)
     observation_omit_size = 2
   elif env_name == 'HalfCheetah-v1':
-    env = half_cheetah.HalfCheetahEnv(expose_all_qpos=True, task='default')
+    env = half_cheetah.HalfCheetahEnv(expose_all_qpos=bool(FLAGS.expose_all_qpos), task='default')
     observation_omit_size = 1
   elif env_name == 'Humanoid-v1':
-    env = humanoid.HumanoidEnv(expose_all_qpos=True)
+    env = humanoid.HumanoidEnv(expose_all_qpos=bool(FLAGS.expose_all_qpos))
     observation_omit_size = 2
   elif env_name == 'point_mass':
     env = point_mass.PointMassEnv(expose_goal=False, expose_velocity=False)
@@ -758,6 +761,19 @@ def eval_loop(eval_dir,
           return_data=True,
           close_environment=True if eval_idx == per_skill_evaluations -
           1 else False)
+
+      eval_trajectory_obs = [x[5] for x in eval_trajectory]
+      eval_trajectory_act = [x[1] for x in eval_trajectory]
+
+      traj_data = {
+          "observations": [eval_trajectory_obs],
+          "actions": [eval_trajectory_act],
+          "env_id": FLAGS.environment,
+      }
+      full_filename = vid_name + "_" + str(idx) + "_" + str(eval_idx)
+      traj_data_file = os.path.join(eval_dir, full_filename + ".pkl")
+      with open(traj_data_file, "wb") as f:
+          pkl.dump(traj_data, f)
 
       observations.append([x[5] for x in eval_trajectory])
       actions.append([x[1] for x in eval_trajectory])
