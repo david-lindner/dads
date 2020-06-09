@@ -24,72 +24,90 @@ from gym.envs.mujoco import mujoco_env
 
 
 class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-
-  def __init__(self,
-               expose_all_qpos=False,
-               task='default',
-               target_velocity=None,
-               model_path='half_cheetah.xml'):
-    # Settings from
-    # https://github.com/openai/gym/blob/master/gym/envs/__init__.py
-    self._expose_all_qpos = expose_all_qpos
-    self._task = task
-    self._target_velocity = target_velocity
-
-    xml_path = "envs/assets/"
-    model_path = os.path.abspath(os.path.join(xml_path, model_path))
-
-    mujoco_env.MujocoEnv.__init__(
+    def __init__(
         self,
-        model_path,
-        5)
-    utils.EzPickle.__init__(self)
+        expose_all_qpos=False,
+        task="default",
+        target_velocity=None,
+        # model_path='half_cheetah.xml'):
+        model_path="half_cheetah_video.xml",
+    ):
+        # Settings from
+        # https://github.com/openai/gym/blob/master/gym/envs/__init__.py
+        self._expose_all_qpos = expose_all_qpos
+        self._task = task
+        self._target_velocity = target_velocity
 
-  def step(self, action):
-    xposbefore = self.sim.data.qpos[0]
-    self.do_simulation(action, self.frame_skip)
-    xposafter = self.sim.data.qpos[0]
-    xvelafter = self.sim.data.qvel[0]
-    ob = self._get_obs()
-    reward_ctrl = -0.1 * np.square(action).sum()
+        xml_path = "envs/assets/"
+        model_path = os.path.abspath(os.path.join(xml_path, model_path))
 
-    if self._task == 'default':
-      reward_vel = 0.
-      reward_run = (xposafter - xposbefore) / self.dt
-      reward = reward_ctrl + reward_run
-    elif self._task == 'target_velocity':
-      reward_vel = -(self._target_velocity - xvelafter)**2
-      reward = reward_ctrl + reward_vel
-    elif self._task == 'run_back':
-      reward_vel = 0.
-      reward_run = (xposbefore - xposafter) / self.dt
-      reward = reward_ctrl + reward_run
+        mujoco_env.MujocoEnv.__init__(self, model_path, 5)
+        utils.EzPickle.__init__(self)
 
-    done = False
-    return ob, reward, done, dict(
-        reward_run=reward_run, reward_ctrl=reward_ctrl, reward_vel=reward_vel)
+    def step(self, action):
+        xposbefore = self.sim.data.qpos[0]
+        self.do_simulation(action, self.frame_skip)
+        xposafter = self.sim.data.qpos[0]
+        xvelafter = self.sim.data.qvel[0]
+        ob = self._get_obs()
+        reward_ctrl = -0.1 * np.square(action).sum()
 
-  def _get_obs(self):
-    if self._expose_all_qpos:
-      return np.concatenate(
-          [self.sim.data.qpos.flat, self.sim.data.qvel.flat])
-    return np.concatenate([
-        self.sim.data.qpos.flat[1:],
-        self.sim.data.qvel.flat,
-    ])
+        if self._task == "default":
+            reward_vel = 0.0
+            reward_run = (xposafter - xposbefore) / self.dt
+            reward = reward_ctrl + reward_run
+        elif self._task == "target_velocity":
+            reward_vel = -(self._target_velocity - xvelafter) ** 2
+            reward = reward_ctrl + reward_vel
+        elif self._task == "run_back":
+            reward_vel = 0.0
+            reward_run = (xposbefore - xposafter) / self.dt
+            reward = reward_ctrl + reward_run
 
-  def reset_model(self):
-    qpos = self.init_qpos + self.np_random.uniform(
-        low=-.1, high=.1, size=self.sim.model.nq)
-    qvel = self.init_qvel + self.np_random.randn(self.sim.model.nv) * .1
-    self.set_state(qpos, qvel)
-    return self._get_obs()
+        done = False
+        return (
+            ob,
+            reward,
+            done,
+            dict(reward_run=reward_run, reward_ctrl=reward_ctrl, reward_vel=reward_vel),
+        )
 
-  def viewer_setup(self):
-    camera_id = self.model.camera_name2id('track')
-    self.viewer.cam.type = 2
-    self.viewer.cam.fixedcamid = camera_id
-    self.viewer.cam.distance = self.model.stat.extent * 0.5
+    def _get_obs(self):
+        if self._expose_all_qpos:
+            return np.concatenate([self.sim.data.qpos.flat, self.sim.data.qvel.flat])
+        return np.concatenate([self.sim.data.qpos.flat[1:], self.sim.data.qvel.flat])
 
-    # self.viewer.cam.distance = self.model.stat.extent * 0.5
-    # import pdb; pdb.set_trace()
+    def render(self, *args, **kwargs):
+        return super().render(*args, height=1000, width=4000, **kwargs)
+
+    def reset_model(self):
+        qpos = self.init_qpos + self.np_random.uniform(
+            low=-0.1, high=0.1, size=self.sim.model.nq
+        )
+        qvel = self.init_qvel + self.np_random.randn(self.sim.model.nv) * 0.1
+        self.set_state(qpos, qvel)
+        return self._get_obs()
+
+    def viewer_setup(self):
+        #camera_id = self.model.camera_name2id("track")
+        # self.viewer.cam.type = 2
+        # self.viewer.cam.fixedcamid = camera_id
+        # self.viewer.cam.distance = self.model.stat.extent * 0.5
+
+        #camera_id = self.model.camera_name2id("fixed")
+        #self.viewer.cam.fixedcamid = -1
+        #self.viewer.cam.type = 2
+
+        self.viewer.cam.trackbodyid = -1
+        self.viewer.cam.distance = (
+            self.model.stat.extent * 0.4
+        )  # how much you "zoom in", model.stat.extent is the max limits of the arena
+        self.viewer.cam.lookat[0] += 5
+        self.viewer.cam.lookat[1] += 1.1
+        self.viewer.cam.lookat[2] += 0
+        self.viewer.cam.elevation = (
+            -20
+        )  # camera rotation around the axis in the plane going through the frame origin (if 0 you just see a line)
+        self.viewer.cam.azimuth = 90  # camera rotation around the camera's vertical axis
+
+        #import pdb; pdb.set_trace()
